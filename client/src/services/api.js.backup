@@ -1,0 +1,18 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api'
+});
+
+export const uploadCSV = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/api/imports/upload', formData);
+};
+
+export const getImports = () => api.get('/api/imports');
+export const getImport = (id) => api.get(`/api/imports/${id}`);
+export const getLeads = (params) => api.get('/api/leads', { params });
+export const getStats = () => api.get('/api/stats');
+
+export default api;

@@ -1,0 +1,229 @@
+import { useState, useEffect } from 'react';
+import { getLeads } from '../services/api';
+import { Search, Sparkles, X, Copy, Check } from 'lucide-react';
+
+export default function LeadsWithAI() {
+  const [data, setData] = useState({ leads: [], pagination: { total: 0, page: 1, pages: 1 } });
+  const [search, setSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [generatingEmail, setGeneratingEmail] = useState(false);
+  const [generatedEmail, setGeneratedEmail] = useState('');
+  const [emailType, setEmailType] = useState('cold');
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadLeads();
+  }, [search]);
+
+  const loadLeads = async () => {
+    try {
+      const params = { search, page: data.pagination.page };
+      const response = await getLeads(params);
+      setData(response.data);
+    } catch (error) {
+      console.error('Failed to load leads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateEmail = async (lead, type) => {
+    setGeneratingEmail(true);
+    setGeneratedEmail('');
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/leads/generate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead, emailType: type })
+      });
+      
+      const data = await response.json();
+      setGeneratedEmail(data.email);
+    } catch (error) {
+      console.error('Failed to generate email:', error);
+      setGeneratedEmail('Error generating email. Please try again.');
+    } finally {
+      setGeneratingEmail(false);
+    }
+  };
+
+  const copyEmail = () => {
+    navigator.clipboard.writeText(generatedEmail);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const openEmailModal = (lead) => {
+    setSelectedLead(lead);
+    setGeneratedEmail('');
+    generateEmail(lead, emailType);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-4xl font-bold text-white flex items-center gap-3">
+          <Sparkles className="text-blue-400" size={36} />
+          AI-Powered Leads
+        </h1>
+        
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 rounded-lg">
+          <p className="text-white text-sm font-semibold">✨ AI Features Active</p>
+        </div>
+      </div>
+
+      <div className="relative w-full mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+        <input
+          type="text"
+          placeholder="Search 150 enterprise leads..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-slate-400">Loading...</div>
+      ) : (
+        <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-800">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Email</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Name</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Company</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Title</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Score</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">AI Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {data.leads.slice(0, 10).map((lead) => (
+                <tr key={lead._id} className="hover:bg-slate-800/50">
+                  <td className="px-6 py-4 text-slate-300 text-sm">{lead.email}</td>
+                  <td className="px-6 py-4 text-slate-300">
+                    {lead.firstName} {lead.lastName}
+                  </td>
+                  <td className="px-6 py-4 text-slate-300 font-semibold">{lead.company}</td>
+                  <td className="px-6 py-4 text-slate-400 text-sm">{lead.title}</td>
+                  <td className="px-6 py-4">
+                    <ScoreBadge score={lead.score} />
+                  </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => openEmailModal(lead)}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-lg flex items-center gap-2 transition-all"
+                    >
+                      <Sparkles size={16} />
+                      Generate Email
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          <div className="px-6 py-4 bg-slate-800 text-slate-400 text-sm">
+            Showing 10 of {data.pagination.total} leads • Click "Generate Email" to see AI in action
+          </div>
+        </div>
+      )}
+
+      {selectedLead && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 max-w-3xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
+                  <Sparkles className="text-white" size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">AI Email Generator</h2>
+                  <p className="text-slate-400 text-sm">
+                    For {selectedLead.firstName} {selectedLead.lastName} • {selectedLead.company}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedLead(null)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X className="text-slate-400" size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="flex gap-2 mb-4">
+                {['cold', 'followup', 'meeting'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setEmailType(type);
+                      generateEmail(selectedLead, type);
+                    }}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      emailType === type
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    {type === 'cold' && '🧊 Cold Outreach'}
+                    {type === 'followup' && '📧 Follow-up'}
+                    {type === 'meeting' && '📅 Meeting Request'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="bg-slate-800 rounded-xl p-6 min-h-[400px] max-h-[500px] overflow-y-auto">
+                {generatingEmail ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+                    <p className="text-slate-400 animate-pulse">AI is crafting your perfect email...</p>
+                  </div>
+                ) : generatedEmail ? (
+                  <div className="space-y-4">
+                    <pre className="text-slate-300 whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                      {generatedEmail}
+                    </pre>
+                    <button
+                      onClick={copyEmail}
+                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={20} />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={20} />
+                          Copy Email
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScoreBadge({ score }) {
+  let color = 'bg-slate-700 text-slate-300';
+  if (score >= 80) color = 'bg-emerald-500 text-white';
+  else if (score >= 60) color = 'bg-blue-500 text-white';
+  else if (score >= 40) color = 'bg-yellow-500 text-white';
+
+  return (
+    <span className={`inline-flex items-center justify-center w-12 h-12 rounded-full font-bold ${color}`}>
+      {score}
+    </span>
+  );
+}
