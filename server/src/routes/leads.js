@@ -1,5 +1,6 @@
 import express from 'express';
 import Lead from '../models/Lead.js';
+import { generatePersonalizedEmail } from '../services/ai/emailGenerator.js';
 
 const router = express.Router();
 
@@ -124,60 +125,39 @@ router.post('/export', async (req, res) => {
   }
 });
 
-// AI Email Generation Endpoint
+// AI Email Generation Endpoint - NOW WITH REAL AI! 🤖
 router.post('/generate-email', async (req, res) => {
   try {
     const { lead, emailType } = req.body;
-    
-    const templates = {
-      cold: `Hi ${lead.firstName},
 
-I noticed ${lead.company} is scaling fast and wanted to reach out about something that might save your team significant time.
+    // Validate input
+    if (!lead || !emailType) {
+      return res.status(400).json({ error: 'Lead and emailType are required' });
+    }
 
-As ${lead.title}, you're likely dealing with manual lead processing, data cleanup, and scoring. We built an AI-powered platform that handles this automatically - processing 5,000+ leads in under 30 seconds with 95% deduplication accuracy.
+    // Generate AI-powered personalized email
+    const result = await generatePersonalizedEmail({
+      lead,
+      emailType,
+      options: {
+        maxTokens: 400,
+        temperature: 0.7,
+      },
+    });
 
-Our clients typically see 10x faster lead qualification and 3x more meetings booked.
-
-Would a quick 15-minute demo make sense? I can show you how it works with your actual data.
-
-Best,
-[Your Name]`,
-      
-      followup: `Hi ${lead.firstName},
-
-Quick follow-up on my email from last week about automating your lead ops.
-
-Just thought you'd find this interesting: ${lead.company}'s competitors are now processing leads 10x faster using AI automation. One similar company reduced their sales ops headcount by 60% while actually improving lead quality.
-
-Worth a quick chat this week?
-
-Best,
-[Your Name]`,
-      
-      meeting: `Hi ${lead.firstName},
-
-Thanks for your interest in seeing how we can help ${lead.company} automate lead processing!
-
-I'd love to show you a 15-minute demo where you'll see:
-- How to process 5,000 leads in 30 seconds
-- Automated scoring & deduplication (95% accuracy)
-- Export to Salesforce/HubSpot in one click
-
-Are any of these times good for you?
-- Tuesday 2pm ET
-- Wednesday 10am ET
-- Thursday 3pm ET
-
-Looking forward to it!
-
-Best,
-[Your Name]`
-    };
-    
-    const email = templates[emailType] || templates.cold;
-    res.json({ email });
+    // Return email with metadata
+    res.json({
+      email: result.email,
+      subject: result.subject,
+      metadata: result.metadata,
+      warning: result.warning, // Only present if using fallback
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Email generation error:', error);
+    res.status(500).json({
+      error: 'Failed to generate email',
+      details: error.message
+    });
   }
 });
 
