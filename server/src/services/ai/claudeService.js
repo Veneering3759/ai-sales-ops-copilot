@@ -1,9 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-// Initialize Claude client
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Lazy initialization - create client only when needed
+let client = null;
+
+function getClient() {
+  if (!client) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not set in environment variables');
+    }
+    client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
+  return client;
+}
 
 /**
  * Generate text using Claude AI
@@ -15,8 +25,9 @@ const client = new Anthropic({
  */
 export async function generateText({ prompt, maxTokens = 1024, temperature = 0.7 }) {
   try {
-    const message = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    const apiClient = getClient();
+    const message = await apiClient.messages.create({
+      model: 'claude-3-haiku-20240307',
       max_tokens: maxTokens,
       temperature,
       messages: [{
@@ -41,8 +52,9 @@ export async function generateText({ prompt, maxTokens = 1024, temperature = 0.7
  */
 export async function generateJSON({ prompt, maxTokens = 500 }) {
   try {
-    const message = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    const apiClient = getClient();
+    const message = await apiClient.messages.create({
+      model: 'claude-3-haiku-20240307',
       max_tokens: maxTokens,
       temperature: 0.3, // Lower temperature for more consistent JSON
       messages: [{
