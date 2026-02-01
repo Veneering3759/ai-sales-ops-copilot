@@ -52,6 +52,7 @@ const corsOptions = {
 
     return cb(new Error(`CORS blocked for origin: ${origin}`), false);
   },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 204,
